@@ -10,6 +10,8 @@ gem 'spring', :group => :development
 
 gem 'pg'
 
+gem 'sqlite3'
+
 gem 'rails_12factor', group: :production
 
 gem 'byebug'

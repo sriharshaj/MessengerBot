@@ -1,1 +1,15 @@
-./log/*.log
+/.bundle
+/db/*.sqlite3
+/db/*.sqlite3-journal
+/log/*.log
+/tmp
+.idea
+log
+*.swp
+*.swo
+public/assets*
+public/system*
+*.DS_Store
+tags
+config/database.yml
+
