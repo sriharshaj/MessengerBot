@@ -1,6 +1,6 @@
 module QueryRequest
     extend ActiveSupport::Concern
-    @page_access_token = "EAAPtidyFOdUBAGhf3jQ29kwnrDQNoONxSa6ZAljwqJSQ6tWbZCuHsRz4p3LcATSMW0ZCzwDIaKxJCCbPpycztEYaZBORlCQ0rQZCohumIuNmdk9NM5EARv2wcsvatJnvScZBvS90ZBUZAtTFIYZCQkuavs446QMzwqqLsMOqPYhuQeQZDZD"
+    @page_access_token = nil
     
     def self.received_authentication event
         sender_id = event["sender"]["id"]
