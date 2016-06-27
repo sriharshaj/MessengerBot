@@ -20,6 +20,8 @@ gem 'httparty'
 
 gem 'delayed_job_active_record'
 
+gem 'rest-client'
+
 # To use ActiveModel has_secure_password
 # gem 'bcrypt', '~> 3.1.7'
 

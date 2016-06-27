@@ -1,7 +1,7 @@
 module QueryRequest
     extend ActiveSupport::Concern
     @page_access_token = "EAAPtidyFOdUBAGhf3jQ29kwnrDQNoONxSa6ZAljwqJSQ6tWbZCuHsRz4p3LcATSMW0ZCzwDIaKxJCCbPpycztEYaZBORlCQ0rQZCohumIuNmdk9NM5EARv2wcsvatJnvScZBvS90ZBUZAtTFIYZCQkuavs446QMzwqqLsMOqPYhuQeQZDZD"
-
+    
     def self.received_authentication event
         sender_id = event["sender"]["id"]
         recipient_id = event["recipient"]["id"]
@@ -24,8 +24,9 @@ module QueryRequest
         message_id = message["id"]
         message_text = message["text"]
         message_attachments = message["attachments"]
+        
         if message_text
-            send_text_message(sender_id,message_text)
+            get_all_definitions(sender_id, message_text)
         else
             send_text_message(sender_id,"Message With Attachment Received")
         end
@@ -51,11 +52,16 @@ module QueryRequest
         sender_id = event["sender"]["id"]
         recipient_id = event["recipient"]["id"]
         time_of_postback = event["timestamp"]
-        payload = event["postback"]["payload"]
+        payload = JSON.parse(event["postback"]["payload"])
+        
+        if payload["service"] == "definition"
+            get_specific_definition(sender_id, payload)
+        else
+            send_text_message(sender_id,"Postback Called")
+        end
         
         Rails.logger.info "Received postback for user #{sender_id} and page 
             #{recipient_id} with payload #{payload} at #{time_of_postback}"
-        send_text_message(sender_id,"Postback Called")
     end
     
     def self.send_text_message(recipient_id,message_text)
@@ -70,13 +76,84 @@ module QueryRequest
         call_send_api(message_data)
     end
     
-    def self.call_send_api message_data
-        options ={
-            query: {access_token: @page_access_token},
-            body: message_data
+    def self.send_generic_message( recipient_id, elements)
+        message_data = {
+            "recipient": {
+                "id": recipient_id
+            },
+            "message": {
+                "attachment": {
+                    "type": "template",
+                    "payload": {
+                        "template_type": "generic",
+                        "elements": elements
+                    }
+                }
+            }
         }
-        response = HTTParty.post("https://graph.facebook.com/v2.6/me/messages",options)
-        Rails.logger.info "Response code #{response.code}"
+        call_send_api message_data
+    end
+    
+    def self.get_definition(word)
+        begin
+            headers = { 
+                "X-Mashape-Key" => "KVR4tIrf2tmshReqZiIrsNHXu6sEp12E2QxjsnV1fTtjpiXYQj",
+                "Accept" => "application/json"
+            }
+            response = RestClient.get "https://wordsapiv1.p.mashape.com/words/#{word}/definitions", headers
+            response = JSON.parse(response)
+        rescue
+            response = nil
+        end
+        response
+    end
+    
+    def self.get_all_definitions( recipient_id, word)
+        response = get_definition(word)
+        if response
+            definitions = response["definitions"].first(10)
+            definition_elements = []
+            
+            definitions.each_with_index do |definition, index|
+                element = {
+                    "title": definition["partOfSpeech"],
+                    "subtitle": definition["definition"]
+                }
+                if element[:subtitle] and element[:subtitle].length > 80
+                    element[:buttons] = [
+                        {
+                            "type":"postback",
+                            "title": "read full",
+                            "payload": {"service": "definition", "word": word, "no": index}.to_json
+                        }
+                    ]
+                end
+                definition_elements.push(element)
+            end
+            send_generic_message recipient_id, definition_elements
+        else
+            send_text_message(recipient_id ,"No meaning found")
+        end
+    end
+    
+    def self.get_specific_definition(recipient_id, payload)
+        response = get_definition(payload["word"])
+        if response
+            definition = response["definitions"][payload["no"]]
+            send_text_message(recipient_id, definition["definition"])
+        else
+            send_text_message(recipient_id ,"No meaning found")
+        end
+    end
+
+    
+    def self.call_send_api message_data
+        response = RestClient.post "https://graph.facebook.com/v2.6/me/messages?access_token=#{@page_access_token}",
+        message_data.to_json,
+        :content_type => 'application/json',
+        :accept => 'application/json'
+   
+        Rails.logger.info "Response error #{response}"
     end
     
 end
